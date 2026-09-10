@@ -10,10 +10,10 @@
   <meta name="format-detection" content="telephone=no" />
   <title>План дня</title>
 
-  <link rel="manifest" href="./manifest.webmanifest?v=31" />
+  <link rel="manifest" href="./manifest.webmanifest?v=35" />
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
   <link rel="icon" href="./icons/icon-192.png" />
-  <link rel="stylesheet" href="./styles.css?v=31" />
+  <link rel="stylesheet" href="./styles.css?v=35" />
 </head>
 <body>
   <main class="app-shell">
@@ -173,8 +173,8 @@
       </label>
 
       <div class="priority-editor" aria-label="Приоритет задачи">
-        <button id="taskImportantToggle" class="priority-toggle" type="button" aria-pressed="false">Важное</button>
-        <button id="taskUrgentToggle" class="priority-toggle urgent" type="button" aria-pressed="false">Срочное</button>
+        <button id="taskImportantToggle" class="priority-toggle important" data-priority="important" type="button" aria-pressed="false">Неважно</button>
+        <button id="taskUrgentToggle" class="priority-toggle urgent" data-priority="urgent" type="button" aria-pressed="false">Несрочно</button>
       </div>
 
       <footer class="dialog-actions">
@@ -217,6 +217,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-  <script src="./app.js?v=31" defer></script>
+  <script src="./app.js?v=35" defer></script>
 </body>
 </html>

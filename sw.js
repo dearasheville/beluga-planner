@@ -1,10 +1,10 @@
-const CACHE_NAME = "day-planner-v3-1";
+const CACHE_NAME = "day-planner-v3-5";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=31",
-  "./app.js?v=31",
-  "./manifest.webmanifest?v=31",
+  "./styles.css?v=35",
+  "./app.js?v=35",
+  "./manifest.webmanifest?v=35",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png",

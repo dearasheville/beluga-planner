@@ -244,23 +244,25 @@ function dotCategoriesForRecord(record) {
     .filter(category => ACTIVITY_TYPES.has(category));
 }
 
+function taskDisplayOrder(a, b) {
+  // Completed tasks always form the second group. Manual order is preserved
+  // independently inside unfinished and completed groups.
+  return Number(a.completed) - Number(b.completed)
+    || a.order - b.order
+    || a.createdAt - b.createdAt;
+}
+
 function queueTasks() {
   return allTasks
     .filter(task => !task.scheduled)
-    .sort((a, b) => {
-      if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
-      return a.order - b.order || a.createdAt - b.createdAt;
-    });
+    .sort(taskDisplayOrder);
 }
 
 function tasksForSchedule(date, slot = null) {
   const key = typeof date === "string" ? date : dateKey(date);
   return allTasks
     .filter(task => task.scheduled?.date === key && (!slot || task.scheduled.slot === slot))
-    .sort((a, b) => {
-      if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
-      return a.order - b.order || a.createdAt - b.createdAt;
-    });
+    .sort(taskDisplayOrder);
 }
 
 async function refreshData() {
@@ -465,8 +467,8 @@ function createQueueTaskCard(task) {
   const toggles = document.createElement("div");
   toggles.className = "task-priority-row";
   toggles.append(
-    priorityButton(task, "important", "Важное"),
-    priorityButton(task, "urgent", "Срочное"),
+    priorityButton(task, "important"),
+    priorityButton(task, "urgent"),
   );
   content.appendChild(toggles);
 
@@ -492,12 +494,13 @@ function createQueueTaskCard(task) {
   return card;
 }
 
-function priorityButton(task, prop, label) {
+function priorityButton(task, prop) {
+  const active = Boolean(task[prop]);
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = `priority-chip ${prop}${task[prop] ? " active" : ""}`;
-  btn.textContent = label;
-  btn.setAttribute("aria-pressed", String(task[prop]));
+  btn.className = `priority-chip ${prop}${active ? " active" : ""}`;
+  btn.textContent = priorityLabel(prop, active);
+  btn.setAttribute("aria-pressed", String(active));
   btn.addEventListener("click", async () => {
     task[prop] = !task[prop];
     task.updatedAt = Date.now();
@@ -508,38 +511,93 @@ function priorityButton(task, prop, label) {
   return btn;
 }
 
+function priorityLabel(prop, active) {
+  if (prop === "important") return active ? "Важно" : "Неважно";
+  return active ? "Срочно" : "Несрочно";
+}
+
 function attachDragHandlers(handle, card) {
   handle.addEventListener("pointerdown", event => {
-    if (event.button !== undefined && event.button !== 0) return;
+    if (dragState) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
     event.preventDefault();
-    dragState = { card, handle, pointerId: event.pointerId };
-    card.classList.add("dragging");
-    handle.setPointerCapture?.(event.pointerId);
+
+    const rect = card.getBoundingClientRect();
+    const placeholder = document.createElement("div");
+    placeholder.className = "queue-drag-placeholder";
+    placeholder.style.height = `${rect.height}px`;
+    card.after(placeholder);
+
+    dragState = {
+      card,
+      handle,
+      placeholder,
+      pointerId: event.pointerId,
+      offsetY: event.clientY - rect.top,
+      left: rect.left,
+      width: rect.width,
+    };
+
+    card.classList.add("dragging", "dragging-fixed");
+    card.style.left = `${rect.left}px`;
+    card.style.top = `${rect.top}px`;
+    card.style.width = `${rect.width}px`;
+    document.body.classList.add("queue-drag-active");
+
+    document.addEventListener("pointermove", onQueueDragMove, { capture: true, passive: false });
+    document.addEventListener("pointerup", finishQueueDrag, { capture: true, passive: false });
+    document.addEventListener("pointercancel", finishQueueDrag, { capture: true, passive: false });
+  });
+}
+
+function onQueueDragMove(event) {
+  if (!dragState || dragState.pointerId !== event.pointerId) return;
+  event.preventDefault();
+
+  const { card, placeholder, offsetY } = dragState;
+  card.style.top = `${event.clientY - offsetY}px`;
+
+  const edge = 72;
+  if (event.clientY < edge) window.scrollBy(0, -12);
+  else if (event.clientY > window.innerHeight - edge) window.scrollBy(0, 12);
+
+  const draggedCompleted = card.classList.contains("completed");
+  const allCandidates = [...dom.queueList.querySelectorAll(".queue-task")].filter(item => item !== card);
+  const candidates = allCandidates.filter(item => item.classList.contains("completed") === draggedCompleted);
+  const before = candidates.find(item => {
+    const rect = item.getBoundingClientRect();
+    return event.clientY < rect.top + rect.height / 2;
   });
 
-  handle.addEventListener("pointermove", event => {
-    if (!dragState || dragState.pointerId !== event.pointerId) return;
-    event.preventDefault();
+  if (before) {
+    dom.queueList.insertBefore(placeholder, before);
+  } else if (draggedCompleted) {
+    dom.queueList.appendChild(placeholder);
+  } else {
+    const firstCompleted = allCandidates.find(item => item.classList.contains("completed"));
+    if (firstCompleted) dom.queueList.insertBefore(placeholder, firstCompleted);
+    else dom.queueList.appendChild(placeholder);
+  }
+}
 
-    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".queue-task");
-    if (!target || target === card || !dom.queueList.contains(target)) return;
+async function finishQueueDrag(event) {
+  if (!dragState || dragState.pointerId !== event.pointerId) return;
+  event.preventDefault();
 
-    const rect = target.getBoundingClientRect();
-    const before = event.clientY < rect.top + rect.height / 2;
-    dom.queueList.insertBefore(card, before ? target : target.nextSibling);
-  });
+  const { card, placeholder } = dragState;
+  document.removeEventListener("pointermove", onQueueDragMove, true);
+  document.removeEventListener("pointerup", finishQueueDrag, true);
+  document.removeEventListener("pointercancel", finishQueueDrag, true);
 
-  const finish = async event => {
-    if (!dragState || dragState.pointerId !== event.pointerId) return;
-    event.preventDefault();
-    card.classList.remove("dragging");
-    try { handle.releasePointerCapture?.(event.pointerId); } catch (_) {}
-    dragState = null;
-    await persistQueueOrderFromDOM();
-  };
+  card.classList.remove("dragging", "dragging-fixed");
+  card.style.left = "";
+  card.style.top = "";
+  card.style.width = "";
+  document.body.classList.remove("queue-drag-active");
 
-  handle.addEventListener("pointerup", finish);
-  handle.addEventListener("pointercancel", finish);
+  placeholder.replaceWith(card);
+  dragState = null;
+  await persistQueueOrderFromDOM();
 }
 
 async function persistQueueOrderFromDOM() {
@@ -592,6 +650,9 @@ function createScheduledBlock(day, interval, tasks, orphan = false) {
   const article = document.createElement("article");
   article.className = "scheduled-block";
   article.dataset.category = ACTIVITY_TYPES.has(category) ? category : "neutral";
+  article.dataset.slot = interval;
+  article.dataset.date = day.date;
+  article.dataset.orphan = String(orphan);
 
   const header = document.createElement("header");
   header.className = "scheduled-block-header";
@@ -616,6 +677,9 @@ function createScheduledBlock(day, interval, tasks, orphan = false) {
 
   const taskList = document.createElement("div");
   taskList.className = "scheduled-task-list";
+  taskList.dataset.slot = interval;
+  taskList.dataset.date = day.date;
+  taskList.dataset.orphan = String(orphan);
 
   for (const task of tasks) {
     taskList.appendChild(createScheduledTaskRow(task));
@@ -642,6 +706,14 @@ function createScheduledBlock(day, interval, tasks, orphan = false) {
 function createScheduledTaskRow(task) {
   const row = document.createElement("div");
   row.className = `scheduled-task-row${task.completed ? " completed" : ""}`;
+  row.dataset.taskId = task.id;
+
+  const handle = document.createElement("button");
+  handle.type = "button";
+  handle.className = "drag-handle scheduled-drag-handle";
+  handle.setAttribute("aria-label", "Перетащить задачу");
+  handle.title = "Перетащить";
+  handle.innerHTML = "<span>⠿</span>";
 
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
@@ -666,23 +738,19 @@ function createScheduledTaskRow(task) {
     content.appendChild(note);
   }
 
-  if (task.important || task.urgent) {
-    const badges = document.createElement("div");
-    badges.className = "mini-priority-row";
-    if (task.important) {
-      const badge = document.createElement("span");
-      badge.className = "mini-priority important";
-      badge.textContent = "Важное";
-      badges.appendChild(badge);
-    }
-    if (task.urgent) {
-      const badge = document.createElement("span");
-      badge.className = "mini-priority urgent";
-      badge.textContent = "Срочное";
-      badges.appendChild(badge);
-    }
-    content.appendChild(badges);
-  }
+  const badges = document.createElement("div");
+  badges.className = "mini-priority-row";
+
+  const importanceBadge = document.createElement("span");
+  importanceBadge.className = `mini-priority important${task.important ? " active" : ""}`;
+  importanceBadge.textContent = task.important ? "Важно" : "Неважно";
+
+  const urgencyBadge = document.createElement("span");
+  urgencyBadge.className = `mini-priority urgent${task.urgent ? " active" : ""}`;
+  urgencyBadge.textContent = task.urgent ? "Срочно" : "Несрочно";
+
+  badges.append(importanceBadge, urgencyBadge);
+  content.appendChild(badges);
 
   const menuBtn = document.createElement("button");
   menuBtn.type = "button";
@@ -691,8 +759,154 @@ function createScheduledTaskRow(task) {
   menuBtn.setAttribute("aria-label", "Действия с задачей");
   menuBtn.addEventListener("click", event => openTaskMenu(event.currentTarget, task));
 
-  row.append(checkbox, content, menuBtn);
+  row.append(handle, checkbox, content, menuBtn);
+  attachScheduledDragHandlers(handle, row);
   return row;
+}
+
+function attachScheduledDragHandlers(handle, row) {
+  handle.addEventListener("pointerdown", event => {
+    if (dragState) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+
+    const sourceList = row.closest(".scheduled-task-list");
+    if (!sourceList) return;
+
+    const rect = row.getBoundingClientRect();
+    const placeholder = document.createElement("div");
+    placeholder.className = "scheduled-drag-placeholder";
+    placeholder.style.height = `${rect.height}px`;
+    row.after(placeholder);
+
+    dragState = {
+      kind: "scheduled",
+      row,
+      handle,
+      placeholder,
+      pointerId: event.pointerId,
+      offsetY: event.clientY - rect.top,
+      sourceList,
+    };
+
+    // Move the floating preview to <body>. The reminders card uses
+    // backdrop-filter, which may become a containing block for position:fixed
+    // in Firefox/WebKit and shift the preview away from the pointer.
+    row.classList.add("dragging", "dragging-fixed");
+    row.style.left = `${rect.left}px`;
+    row.style.top = `${rect.top}px`;
+    row.style.width = `${rect.width}px`;
+    row.style.height = `${rect.height}px`;
+    document.body.appendChild(row);
+    document.body.classList.add("scheduled-drag-active");
+
+    document.addEventListener("pointermove", onScheduledDragMove, { capture: true, passive: false });
+    document.addEventListener("pointerup", finishScheduledDrag, { capture: true, passive: false });
+    document.addEventListener("pointercancel", finishScheduledDrag, { capture: true, passive: false });
+  });
+}
+
+function scheduledDropListAtPoint(clientX, clientY) {
+  const lists = [...dom.scheduledBlocks.querySelectorAll('.scheduled-task-list[data-orphan="false"]')];
+  return lists.find(list => {
+    const block = list.closest(".scheduled-block");
+    if (!block) return false;
+    const rect = block.getBoundingClientRect();
+    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+  }) ?? null;
+}
+
+function onScheduledDragMove(event) {
+  if (!dragState || dragState.kind !== "scheduled" || dragState.pointerId !== event.pointerId) return;
+  event.preventDefault();
+
+  const { row, placeholder, offsetY } = dragState;
+  row.style.top = `${event.clientY - offsetY}px`;
+
+  const edge = 72;
+  if (event.clientY < edge) window.scrollBy(0, -12);
+  else if (event.clientY > window.innerHeight - edge) window.scrollBy(0, 12);
+
+  const targetList = scheduledDropListAtPoint(event.clientX, event.clientY);
+  if (!targetList) return;
+
+  const draggedCompleted = row.classList.contains("completed");
+  const allCandidates = [...targetList.querySelectorAll(".scheduled-task-row")].filter(item => item !== row);
+  const candidates = allCandidates.filter(item => item.classList.contains("completed") === draggedCompleted);
+  const before = candidates.find(item => {
+    const rect = item.getBoundingClientRect();
+    return event.clientY < rect.top + rect.height / 2;
+  });
+
+  if (before) {
+    targetList.insertBefore(placeholder, before);
+  } else if (draggedCompleted) {
+    targetList.appendChild(placeholder);
+  } else {
+    const firstCompleted = allCandidates.find(item => item.classList.contains("completed"));
+    const emptyMessage = targetList.querySelector(".block-empty");
+    if (firstCompleted) targetList.insertBefore(placeholder, firstCompleted);
+    else if (emptyMessage) targetList.insertBefore(placeholder, emptyMessage);
+    else targetList.appendChild(placeholder);
+  }
+}
+
+async function finishScheduledDrag(event) {
+  if (!dragState || dragState.kind !== "scheduled" || dragState.pointerId !== event.pointerId) return;
+  event.preventDefault();
+
+  const { row, placeholder, sourceList } = dragState;
+  document.removeEventListener("pointermove", onScheduledDragMove, true);
+  document.removeEventListener("pointerup", finishScheduledDrag, true);
+  document.removeEventListener("pointercancel", finishScheduledDrag, true);
+
+  row.classList.remove("dragging", "dragging-fixed");
+  row.style.left = "";
+  row.style.top = "";
+  row.style.width = "";
+  row.style.height = "";
+  document.body.classList.remove("scheduled-drag-active");
+
+  const destinationList = placeholder.closest(".scheduled-task-list") ?? sourceList;
+  placeholder.replaceWith(row);
+  dragState = null;
+
+  await persistScheduledOrderFromDOM(destinationList);
+}
+
+async function persistScheduledOrderFromDOM(destinationList) {
+  const visibleLists = [...dom.scheduledBlocks.querySelectorAll(".scheduled-task-list")];
+  const byId = new Map(allTasks.map(task => [task.id, task]));
+  const updates = [];
+
+  for (const list of visibleLists) {
+    const date = list.dataset.date;
+    const slot = list.dataset.slot;
+    if (!date || !slot) continue;
+
+    const rows = [...list.querySelectorAll(".scheduled-task-row")];
+    rows.forEach((row, index) => {
+      const task = byId.get(row.dataset.taskId);
+      if (!task) return;
+      const changedSlot = task.scheduled?.date !== date || task.scheduled?.slot !== slot;
+      const changedOrder = task.order !== index;
+      if (!changedSlot && !changedOrder) return;
+
+      task.scheduled = { date, slot };
+      task.order = index;
+      task.updatedAt = Date.now();
+      updates.push(putTask(task));
+    });
+  }
+
+  await Promise.all(updates);
+  await refreshTasksOnly();
+  renderScheduled();
+  if (!dom.calendarView.hidden) await renderPlanner();
+
+  if (destinationList) {
+    showToast("Порядок задач сохранён");
+  }
 }
 
 function renderReminders() {
@@ -712,7 +926,24 @@ function nextQueueOrder() {
 async function toggleTaskCompleted(id, completed) {
   const task = allTasks.find(item => item.id === id);
   if (!task) return;
+
+  const wasCompleted = task.completed;
   task.completed = completed;
+
+  // A newly completed task goes to the absolute bottom of its current list.
+  // If it is later marked unfinished again, the completion-group sort places it
+  // after the other unfinished tasks while preserving its stored manual order.
+  if (!wasCompleted && completed) {
+    const siblings = allTasks.filter(item => {
+      if (item.id === task.id) return false;
+      if (!task.scheduled) return !item.scheduled;
+      return item.scheduled?.date === task.scheduled.date
+        && item.scheduled?.slot === task.scheduled.slot;
+    });
+    const maxOrder = siblings.length ? Math.max(...siblings.map(item => item.order)) : -1;
+    task.order = maxOrder + 1;
+  }
+
   task.updatedAt = Date.now();
   await putTask(task);
   await refreshTasksOnly();
@@ -723,6 +954,8 @@ async function toggleTaskCompleted(id, completed) {
 function setPriorityToggle(button, active) {
   button.classList.toggle("active", active);
   button.setAttribute("aria-pressed", String(active));
+  const prop = button.dataset.priority;
+  if (prop) button.textContent = priorityLabel(prop, active);
 }
 
 function openTaskDialog(taskId = null, presetSchedule = null) {
@@ -870,12 +1103,13 @@ function openTaskMenu(anchor, task) {
   const menu = document.createElement("div");
   menu.className = "task-menu";
 
-  const edit = menuAction("Редактировать", () => openTaskDialog(task.id));
-  menu.appendChild(edit);
+  menu.appendChild(menuAction("Редактировать", () => openTaskDialog(task.id)));
 
   if (task.scheduled) {
     menu.appendChild(menuAction("Перенести", () => openScheduleDialog(task.id)));
     menu.appendChild(menuAction("Вернуть в очередь", () => unscheduleTask(task)));
+  } else {
+    menu.appendChild(menuAction("Запланировать", () => openScheduleDialog(task.id)));
   }
 
   menu.appendChild(menuAction("Удалить", () => removeTask(task), true));
@@ -883,8 +1117,17 @@ function openTaskMenu(anchor, task) {
 
   const rect = anchor.getBoundingClientRect();
   const menuRect = menu.getBoundingClientRect();
-  const left = Math.min(window.innerWidth - menuRect.width - 10, Math.max(10, rect.right - menuRect.width));
-  const top = Math.min(window.innerHeight - menuRect.height - 10, rect.bottom + 6);
+  const margin = 10;
+  const gap = 6;
+  const left = Math.min(
+    window.innerWidth - menuRect.width - margin,
+    Math.max(margin, rect.right - menuRect.width),
+  );
+  const below = rect.bottom + gap;
+  const above = rect.top - menuRect.height - gap;
+  const top = below + menuRect.height <= window.innerHeight - margin
+    ? below
+    : Math.max(margin, above);
   menu.style.left = `${left}px`;
   menu.style.top = `${top}px`;
 
@@ -1035,7 +1278,7 @@ async function init() {
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js").catch(console.error);
+      navigator.serviceWorker.register("./sw.js?v=32").catch(console.error);
     });
   }
 }
