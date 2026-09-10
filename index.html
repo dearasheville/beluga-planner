@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f6f8fb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="План дня" />
+  <meta name="format-detection" content="telephone=no" />
+  <title>План дня</title>
+
+  <link rel="manifest" href="./manifest.webmanifest?v=31" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <link rel="icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./styles.css?v=31" />
+</head>
+<body>
+  <main class="app-shell">
+    <section id="calendarView" class="app-view active" aria-label="Календарь">
+      <section class="calendar-card">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Календарь</p>
+            <h1 id="monthTitle">Месяц</h1>
+          </div>
+          <div class="topbar-actions">
+            <button id="todayBtn" class="soft-btn" type="button">Сегодня</button>
+            <button id="prevMonthBtn" class="icon-btn" type="button" aria-label="Предыдущий месяц">‹</button>
+            <button id="nextMonthBtn" class="icon-btn" type="button" aria-label="Следующий месяц">›</button>
+          </div>
+        </header>
+
+        <div class="weekdays" aria-hidden="true">
+          <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+        </div>
+
+        <div id="calendarGrid" class="calendar-grid"></div>
+      </section>
+
+      <section class="planner-card" aria-label="План выбранного дня">
+        <header class="planner-header">
+          <div>
+            <p class="eyebrow">Выбранный день</p>
+            <h2 id="selectedDateTitle">—</h2>
+            <p id="selectedWeekday" class="muted"></p>
+          </div>
+          <div id="saveStatus" class="save-status" aria-live="polite">Сохранено локально</div>
+        </header>
+
+        <div id="timeBlocks" class="time-blocks"></div>
+      </section>
+
+      <section class="info-card">
+        <strong>Данные хранятся на этом устройстве.</strong>
+        <span>Календарь и задачи сохраняются локально в IndexedDB.</span>
+      </section>
+    </section>
+
+    <section id="remindersView" class="app-view" aria-label="Напоминания" hidden>
+      <section class="reminders-card">
+        <header class="reminders-header">
+          <div>
+            <p class="eyebrow">Задачи</p>
+            <h1>Напоминания</h1>
+            <p class="muted">Очередь дел и задачи, привязанные к календарю</p>
+          </div>
+        </header>
+
+        <div class="reminder-tabs" role="tablist" aria-label="Разделы напоминаний">
+          <button id="queueTabBtn" class="reminder-tab active" type="button" role="tab" aria-selected="true" aria-controls="queuePanel">Очередь</button>
+          <button id="scheduledTabBtn" class="reminder-tab" type="button" role="tab" aria-selected="false" aria-controls="scheduledPanel">Запланировано</button>
+        </div>
+
+        <section id="queuePanel" class="reminder-panel active" role="tabpanel" aria-labelledby="queueTabBtn">
+          <header class="panel-heading">
+            <div>
+              <h2>Очередь</h2>
+              <p class="muted">Перетаскивай задачи за маркер слева, чтобы менять порядок.</p>
+            </div>
+            <button id="addQueueTaskBtn" class="primary-btn" type="button">+ Задача</button>
+          </header>
+          <div id="queueList" class="queue-list"></div>
+          <div id="queueEmpty" class="empty-state" hidden>
+            <strong>Очередь пуста</strong>
+            <span>Создай задачу — по умолчанию она будет неважной и несрочной.</span>
+          </div>
+        </section>
+
+        <section id="scheduledPanel" class="reminder-panel" role="tabpanel" aria-labelledby="scheduledTabBtn" hidden>
+          <header class="scheduled-date-header">
+            <div>
+              <p class="eyebrow">Запланировано на</p>
+              <h2 id="scheduledDateTitle">—</h2>
+              <p id="scheduledWeekday" class="muted"></p>
+            </div>
+            <div class="date-actions">
+              <button id="scheduledPrevDayBtn" class="icon-btn" type="button" aria-label="Предыдущий день">‹</button>
+              <button id="scheduledTodayBtn" class="soft-btn compact" type="button">Сегодня</button>
+              <button id="scheduledNextDayBtn" class="icon-btn" type="button" aria-label="Следующий день">›</button>
+            </div>
+          </header>
+          <div id="scheduledBlocks" class="scheduled-blocks"></div>
+          <div id="scheduledEmpty" class="empty-state" hidden>
+            <strong>На этот день ничего не запланировано</strong>
+            <span>Сначала создай временной блок в календаре или запланируй задачу из Очереди.</span>
+          </div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Основная навигация">
+    <button id="navCalendarBtn" class="bottom-nav-btn active" type="button" aria-current="page">
+      <span class="nav-icon" aria-hidden="true">▦</span>
+      <span>Календарь</span>
+    </button>
+    <button id="navRemindersBtn" class="bottom-nav-btn" type="button">
+      <span class="nav-icon" aria-hidden="true">☷</span>
+      <span>Напоминания</span>
+    </button>
+  </nav>
+
+  <template id="slotTemplate">
+    <article class="slot">
+      <div class="slot-interval"></div>
+      <div class="slot-body">
+        <div class="slot-row slot-row-top">
+          <label class="field category-field">
+            <span class="sr-only">Тип занятия</span>
+            <select class="category-select">
+              <option value="">Выбрать тип</option>
+              <option value="work">Работа</option>
+              <option value="study">Учёба</option>
+              <option value="leisure">Досуг</option>
+            </select>
+          </label>
+          <button class="clear-btn" type="button" title="Очистить блок" aria-label="Очистить блок">×</button>
+        </div>
+
+        <label class="field time-field">
+          <span class="field-label">Фактическое начало</span>
+          <input class="start-input" type="time" />
+        </label>
+
+        <label class="field note-field">
+          <span class="field-label">Комментарий</span>
+          <textarea class="note-input" rows="2" maxlength="180" placeholder="Короткая заметка"></textarea>
+        </label>
+        <div class="slot-task-summary" hidden></div>
+      </div>
+    </article>
+  </template>
+
+  <dialog id="taskDialog" class="app-dialog">
+    <form id="taskForm" method="dialog" class="dialog-sheet">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">Напоминания</p>
+          <h2 id="taskDialogTitle">Новая задача</h2>
+        </div>
+        <button class="dialog-close" type="button" data-close-dialog="taskDialog" aria-label="Закрыть">×</button>
+      </header>
+
+      <label class="field">
+        <span class="field-label">Задача</span>
+        <input id="taskTitleInput" class="text-input" type="text" maxlength="120" placeholder="Что предстоит сделать?" required />
+      </label>
+
+      <label class="field">
+        <span class="field-label">Комментарий</span>
+        <textarea id="taskNoteInput" rows="3" maxlength="240" placeholder="Необязательно"></textarea>
+      </label>
+
+      <div class="priority-editor" aria-label="Приоритет задачи">
+        <button id="taskImportantToggle" class="priority-toggle" type="button" aria-pressed="false">Важное</button>
+        <button id="taskUrgentToggle" class="priority-toggle urgent" type="button" aria-pressed="false">Срочное</button>
+      </div>
+
+      <footer class="dialog-actions">
+        <button class="secondary-btn" type="button" data-close-dialog="taskDialog">Отмена</button>
+        <button id="saveTaskBtn" class="primary-btn" type="submit">Сохранить</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="scheduleDialog" class="app-dialog">
+    <form id="scheduleForm" method="dialog" class="dialog-sheet">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">Планирование</p>
+          <h2>Запланировать задачу</h2>
+          <p id="scheduleTaskName" class="muted"></p>
+        </div>
+        <button class="dialog-close" type="button" data-close-dialog="scheduleDialog" aria-label="Закрыть">×</button>
+      </header>
+
+      <label class="field">
+        <span class="field-label">Дата</span>
+        <input id="scheduleDateInput" class="text-input" type="date" required />
+      </label>
+
+      <fieldset class="slot-picker">
+        <legend>Временной блок</legend>
+        <div id="scheduleSlotChoices" class="schedule-slot-choices"></div>
+        <p id="scheduleNoSlots" class="inline-note" hidden>На эту дату ещё не создано ни одного блока с выбранным типом деятельности.</p>
+      </fieldset>
+
+      <button id="openScheduleDateInCalendarBtn" class="link-btn" type="button">Открыть этот день в календаре</button>
+
+      <footer class="dialog-actions">
+        <button class="secondary-btn" type="button" data-close-dialog="scheduleDialog">Отмена</button>
+        <button id="confirmScheduleBtn" class="primary-btn" type="submit">Запланировать</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="./app.js?v=31" defer></script>
+</body>
+</html>
