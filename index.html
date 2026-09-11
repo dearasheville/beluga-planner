@@ -10,10 +10,10 @@
   <meta name="format-detection" content="telephone=no" />
   <title>Beluga Planner</title>
 
-  <link rel="manifest" href="./manifest.webmanifest?v=37" />
-  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=37" />
+  <link rel="manifest" href="./manifest.webmanifest?v=38" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=38" />
   <link rel="icon" href="./icons/icon-192.png?v=36" />
-  <link rel="stylesheet" href="./styles.css?v=36" />
+  <link rel="stylesheet" href="./styles.css?v=38" />
 </head>
 <body>
   <main class="app-shell">
@@ -68,11 +68,11 @@
         </header>
 
         <div class="reminder-tabs" role="tablist" aria-label="Разделы напоминаний">
-          <button id="queueTabBtn" class="reminder-tab active" type="button" role="tab" aria-selected="true" aria-controls="queuePanel">Очередь</button>
-          <button id="scheduledTabBtn" class="reminder-tab" type="button" role="tab" aria-selected="false" aria-controls="scheduledPanel">Запланировано</button>
+          <button id="queueTabBtn" class="reminder-tab" type="button" role="tab" aria-selected="false" aria-controls="queuePanel">Очередь</button>
+          <button id="scheduledTabBtn" class="reminder-tab active" type="button" role="tab" aria-selected="true" aria-controls="scheduledPanel">Запланировано</button>
         </div>
 
-        <section id="queuePanel" class="reminder-panel active" role="tabpanel" aria-labelledby="queueTabBtn">
+        <section id="queuePanel" class="reminder-panel" role="tabpanel" aria-labelledby="queueTabBtn" hidden>
           <header class="panel-heading">
             <div>
               <h2>Очередь</h2>
@@ -87,7 +87,7 @@
           </div>
         </section>
 
-        <section id="scheduledPanel" class="reminder-panel" role="tabpanel" aria-labelledby="scheduledTabBtn" hidden>
+        <section id="scheduledPanel" class="reminder-panel active" role="tabpanel" aria-labelledby="scheduledTabBtn">
           <header class="scheduled-date-header">
             <div>
               <p class="eyebrow">Запланировано на</p>
@@ -133,6 +133,9 @@
               <option value="work">Работа</option>
               <option value="study">Учёба</option>
               <option value="leisure">Досуг</option>
+              <option value="health">Здоровье</option>
+              <option value="communication">Общение</option>
+              <option value="household">Быт</option>
             </select>
           </label>
           <button class="clear-btn" type="button" title="Очистить блок" aria-label="Очистить блок">×</button>
@@ -217,6 +220,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-  <script src="./app.js?v=36" defer></script>
+  <script src="./app.js?v=38" defer></script>
 </body>
 </html>

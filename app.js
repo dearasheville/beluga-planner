@@ -5,11 +5,14 @@ const SLOTS = [
   "19:00–22:00",
 ];
 
-const ACTIVITY_TYPES = new Set(["work", "study", "leisure"]);
+const ACTIVITY_TYPES = new Set(["work", "study", "leisure", "health", "communication", "household"]);
 const CATEGORY_LABELS = {
   work: "Работа",
   study: "Учёба",
   leisure: "Досуг",
+  health: "Здоровье",
+  communication: "Общение",
+  household: "Быт",
 };
 
 const DB_NAME = "day-planner-db";
@@ -76,6 +79,10 @@ let taskPresetSchedule = null;
 let schedulingTaskId = null;
 let toastTimer = null;
 let dragState = null;
+let activeMainView = "calendar";
+let activeReminderTab = "scheduled";
+const scrollPositions = { calendar: 0, queue: 0, scheduled: 0 };
+const collapsedScheduledBlocks = new Set();
 
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -475,12 +482,6 @@ function createQueueTaskCard(task) {
   const actions = document.createElement("div");
   actions.className = "task-actions";
 
-  const scheduleBtn = document.createElement("button");
-  scheduleBtn.type = "button";
-  scheduleBtn.className = "schedule-btn";
-  scheduleBtn.textContent = "Запланировать";
-  scheduleBtn.addEventListener("click", () => openScheduleDialog(task.id));
-
   const menuBtn = document.createElement("button");
   menuBtn.type = "button";
   menuBtn.className = "more-btn";
@@ -488,7 +489,7 @@ function createQueueTaskCard(task) {
   menuBtn.setAttribute("aria-label", "Действия с задачей");
   menuBtn.addEventListener("click", event => openTaskMenu(event.currentTarget, task));
 
-  actions.append(scheduleBtn, menuBtn);
+  actions.append(menuBtn);
   card.append(handle, checkbox, content, actions);
   attachDragHandlers(handle, card);
   return card;
@@ -673,7 +674,26 @@ function createScheduledBlock(day, interval, tasks, orphan = false) {
     heading.appendChild(warning);
   }
 
-  header.appendChild(heading);
+  const collapseKey = `${day.date}|${interval}`;
+  const isCollapsed = collapsedScheduledBlocks.has(collapseKey);
+  article.classList.toggle("collapsed", isCollapsed);
+
+  const collapseBtn = document.createElement("button");
+  collapseBtn.type = "button";
+  collapseBtn.className = "collapse-block-btn";
+  collapseBtn.setAttribute("aria-label", isCollapsed ? "Развернуть временной блок" : "Свернуть временной блок");
+  collapseBtn.setAttribute("aria-expanded", String(!isCollapsed));
+  collapseBtn.textContent = isCollapsed ? "⌄" : "⌃";
+  collapseBtn.addEventListener("click", () => {
+    const collapsed = article.classList.toggle("collapsed");
+    if (collapsed) collapsedScheduledBlocks.add(collapseKey);
+    else collapsedScheduledBlocks.delete(collapseKey);
+    collapseBtn.setAttribute("aria-expanded", String(!collapsed));
+    collapseBtn.setAttribute("aria-label", collapsed ? "Развернуть временной блок" : "Свернуть временной блок");
+    collapseBtn.textContent = collapsed ? "⌄" : "⌃";
+  });
+
+  header.append(heading, collapseBtn);
 
   const taskList = document.createElement("div");
   taskList.className = "scheduled-task-list";
@@ -1072,7 +1092,6 @@ async function scheduleCurrentTask() {
   await refreshTasksOnly();
   dom.scheduleDialog.close();
   scheduledDate = parseDateKey(task.scheduled.date);
-  setReminderTab("scheduled");
   renderReminders();
   showToast("Задача запланирована");
 }
@@ -1152,7 +1171,24 @@ function menuAction(label, handler, danger = false) {
   return btn;
 }
 
+function currentScrollKey() {
+  return activeMainView === "calendar" ? "calendar" : activeReminderTab;
+}
+
+function saveCurrentScrollPosition() {
+  scrollPositions[currentScrollKey()] = window.scrollY;
+}
+
+function restoreScrollPosition(key) {
+  const top = scrollPositions[key] ?? 0;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => window.scrollTo({ top, left: 0, behavior: "auto" }));
+  });
+}
+
 function setMainView(view) {
+  saveCurrentScrollPosition();
+
   const calendar = view === "calendar";
   dom.calendarView.hidden = !calendar;
   dom.remindersView.hidden = calendar;
@@ -1163,12 +1199,25 @@ function setMainView(view) {
   dom.navCalendarBtn.toggleAttribute("aria-current", calendar);
   dom.navRemindersBtn.toggleAttribute("aria-current", !calendar);
 
-  if (!calendar) renderReminders();
-  window.scrollTo(0, 0);
+  activeMainView = calendar ? "calendar" : "reminders";
+
+  if (!calendar) {
+    // Every entry into Reminders starts with the Scheduled tab.
+    setReminderTab("scheduled", { saveScroll: false, restoreScroll: false });
+  }
+
+  restoreScrollPosition(currentScrollKey());
 }
 
-function setReminderTab(tab) {
+function setReminderTab(tab, options = {}) {
+  const { saveScroll = true, restoreScroll = true } = options;
+
+  if (saveScroll && activeMainView === "reminders") {
+    scrollPositions[activeReminderTab] = window.scrollY;
+  }
+
   const queue = tab === "queue";
+  activeReminderTab = queue ? "queue" : "scheduled";
   dom.queuePanel.hidden = !queue;
   dom.scheduledPanel.hidden = queue;
   dom.queuePanel.classList.toggle("active", queue);
@@ -1178,6 +1227,10 @@ function setReminderTab(tab) {
   dom.queueTabBtn.setAttribute("aria-selected", String(queue));
   dom.scheduledTabBtn.setAttribute("aria-selected", String(!queue));
   if (queue) renderQueue(); else renderScheduled();
+
+  if (restoreScroll && activeMainView === "reminders") {
+    restoreScrollPosition(activeReminderTab);
+  }
 }
 
 function moveScheduledDate(days) {
@@ -1275,10 +1328,11 @@ async function init() {
   renderCalendar();
   await renderPlanner();
   renderReminders();
+  setReminderTab("scheduled", { saveScroll: false, restoreScroll: false });
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=32").catch(console.error);
+      navigator.serviceWorker.register("./sw.js?v=38").catch(console.error);
     });
   }
 }
