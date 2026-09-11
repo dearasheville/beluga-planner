@@ -17,8 +17,8 @@
   --health-soft: #f2edff;
   --communication: #c66a00;
   --communication-soft: #fff3df;
-  --household: #0f766e;
-  --household-soft: #e6f7f5;
+  --household: #56606f;
+  --household-soft: #eef0f3;
   --urgent: #dd7c20;
   --urgent-soft: #fff3e5;
   --shadow: 0 18px 55px rgba(31,42,68,.10);
@@ -288,7 +288,7 @@ body.scheduled-drag-active { user-select: none; -webkit-user-select: none; }
 .schedule-slot-option[data-category="leisure"]:has(input:checked) { background: var(--leisure-soft); border-color: #bde7cd; }
 .schedule-slot-option[data-category="health"]:has(input:checked) { background: var(--health-soft); border-color: #d8ccff; }
 .schedule-slot-option[data-category="communication"]:has(input:checked) { background: var(--communication-soft); border-color: #f3d39c; }
-.schedule-slot-option[data-category="household"]:has(input:checked) { background: var(--household-soft); border-color: #b4e5df; }
+.schedule-slot-option[data-category="household"]:has(input:checked) { background: var(--household-soft); border-color: #c9ced6; }
 .schedule-slot-option input { width: 18px; height: 18px; accent-color: var(--blue); }
 .schedule-slot-text { display: grid; gap: 2px; }
 .schedule-slot-text small { color: var(--muted); }

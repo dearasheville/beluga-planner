@@ -79,6 +79,8 @@ let taskPresetSchedule = null;
 let schedulingTaskId = null;
 let toastTimer = null;
 let dragState = null;
+let rolloverTimer = null;
+let rolloverInProgress = false;
 let activeMainView = "calendar";
 let activeReminderTab = "scheduled";
 const scrollPositions = { calendar: 0, queue: 0, scheduled: 0 };
@@ -392,6 +394,26 @@ async function renderPlanner() {
     });
 
     dom.timeBlocks.appendChild(fragment);
+  }
+}
+
+function updatePlannerTaskSummaries() {
+  const key = dateKey(selectedDate);
+  for (const slot of dom.timeBlocks.querySelectorAll(".slot")) {
+    const interval = slot.dataset.interval;
+    const summary = slot.querySelector(".slot-task-summary");
+    if (!summary) continue;
+
+    const linkedTasks = tasksForSchedule(key, interval);
+    if (!linkedTasks.length) {
+      summary.hidden = true;
+      summary.textContent = "";
+      continue;
+    }
+
+    const completed = linkedTasks.filter(task => task.completed).length;
+    summary.hidden = false;
+    summary.textContent = `Задачи: ${completed}/${linkedTasks.length} выполнено`;
   }
 }
 
@@ -925,6 +947,7 @@ async function persistScheduledOrderFromDOM(destinationList) {
   await refreshTasksOnly();
   renderScheduled();
   if (!dom.calendarView.hidden) await renderPlanner();
+  else updatePlannerTaskSummaries();
 
   if (destinationList) {
     showToast("Порядок задач сохранён");
@@ -971,6 +994,7 @@ async function toggleTaskCompleted(id, completed) {
   await refreshTasksOnly();
   renderReminders();
   if (!dom.calendarView.hidden) await renderPlanner();
+  else updatePlannerTaskSummaries();
 }
 
 function setPriorityToggle(button, active) {
@@ -1025,6 +1049,7 @@ async function saveTaskFromDialog() {
   dom.taskDialog.close();
   renderReminders();
   if (!dom.calendarView.hidden) await renderPlanner();
+  else updatePlannerTaskSummaries();
   showToast(existing ? "Задача обновлена" : "Задача создана");
 }
 
@@ -1095,6 +1120,7 @@ async function scheduleCurrentTask() {
   dom.scheduleDialog.close();
   scheduledDate = parseDateKey(task.scheduled.date);
   renderReminders();
+  updatePlannerTaskSummaries();
   showToast("Задача запланирована");
 }
 
@@ -1106,6 +1132,7 @@ async function unscheduleTask(task) {
   await refreshTasksOnly();
   renderReminders();
   if (!dom.calendarView.hidden) await renderPlanner();
+  else updatePlannerTaskSummaries();
   showToast("Задача возвращена в Очередь");
 }
 
@@ -1116,6 +1143,7 @@ async function removeTask(task) {
   await refreshTasksOnly();
   renderReminders();
   if (!dom.calendarView.hidden) await renderPlanner();
+  else updatePlannerTaskSummaries();
   showToast("Задача удалена");
 }
 
@@ -1171,6 +1199,76 @@ function menuAction(label, handler, danger = false) {
     handler();
   });
   return btn;
+}
+
+function overdueUnfinishedTasks() {
+  const today = dateKey(startOfDay(new Date()));
+  return allTasks
+    .filter(task => !task.completed && task.scheduled?.date && task.scheduled.date < today)
+    .sort((a, b) => {
+      const dateCompare = a.scheduled.date.localeCompare(b.scheduled.date);
+      if (dateCompare) return dateCompare;
+      const slotCompare = SLOTS.indexOf(a.scheduled.slot) - SLOTS.indexOf(b.scheduled.slot);
+      return slotCompare || a.order - b.order || a.createdAt - b.createdAt;
+    });
+}
+
+async function rollOverOverdueTasks({ notify = true } = {}) {
+  if (rolloverInProgress) return 0;
+  const overdue = overdueUnfinishedTasks();
+  if (!overdue.length) return 0;
+
+  rolloverInProgress = true;
+  try {
+    const currentQueue = allTasks.filter(task => !task.scheduled);
+    let nextOrder = currentQueue.length
+      ? Math.max(...currentQueue.map(task => task.order)) + 1
+      : 0;
+
+    for (const task of overdue) {
+      task.scheduled = null;
+      task.order = nextOrder++;
+      task.updatedAt = Date.now();
+      await putTask(task);
+    }
+
+    await refreshTasksOnly();
+    renderReminders();
+    if (!dom.calendarView.hidden) await renderPlanner();
+    else updatePlannerTaskSummaries();
+
+    if (notify) {
+      const suffix = overdue.length === 1 ? "задача возвращена" : "задач возвращено";
+      showToast(`${overdue.length} ${suffix} в Очередь`);
+    }
+    return overdue.length;
+  } finally {
+    rolloverInProgress = false;
+  }
+}
+
+function scheduleNextDayRollover() {
+  clearTimeout(rolloverTimer);
+  const now = new Date();
+  const nextMidnight = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+    0, 0, 0, 250,
+  );
+  const delay = Math.max(1000, nextMidnight.getTime() - now.getTime());
+
+  rolloverTimer = setTimeout(async () => {
+    await rollOverOverdueTasks({ notify: true });
+    scheduleNextDayRollover();
+  }, delay);
+}
+
+async function handleAppResume() {
+  if (document.visibilityState === "hidden") return;
+  await refreshTasksOnly();
+  await rollOverOverdueTasks({ notify: true });
+  scheduleNextDayRollover();
 }
 
 function currentScrollKey() {
@@ -1324,19 +1422,26 @@ function bindEvents() {
       if (event.target === dialog) dialog.close();
     });
   }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") handleAppResume().catch(console.error);
+  });
+  window.addEventListener("focus", () => handleAppResume().catch(console.error));
 }
 
 async function init() {
   bindEvents();
   await refreshData();
+  await rollOverOverdueTasks({ notify: false });
   renderCalendar();
   await renderPlanner();
   renderReminders();
   setReminderTab("scheduled", { saveScroll: false, restoreScroll: false });
+  scheduleNextDayRollover();
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=39").catch(console.error);
+      navigator.serviceWorker.register("./sw.js?v=310").catch(console.error);
     });
   }
 }
