@@ -1,14 +1,14 @@
-const CACHE_NAME = "beluga-planner-v3-8";
+const CACHE_NAME = "beluga-planner-v3-9";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=38",
-  "./app.js?v=38",
-  "./manifest.webmanifest?v=38",
-  "./icons/icon-192.png?v=38",
-  "./icons/icon-512.png?v=38",
-  "./icons/icon-1024.png?v=38",
-  "./icons/apple-touch-icon.png?v=38",
+  "./styles.css?v=39",
+  "./app.js?v=39",
+  "./manifest.webmanifest?v=39",
+  "./icons/icon-192.png?v=39",
+  "./icons/icon-512.png?v=39",
+  "./icons/icon-1024.png?v=39",
+  "./icons/apple-touch-icon.png?v=39",
 ];
 
 self.addEventListener("install", event => {

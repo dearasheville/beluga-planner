@@ -479,18 +479,14 @@ function createQueueTaskCard(task) {
   );
   content.appendChild(toggles);
 
-  const actions = document.createElement("div");
-  actions.className = "task-actions";
-
   const menuBtn = document.createElement("button");
   menuBtn.type = "button";
-  menuBtn.className = "more-btn";
+  menuBtn.className = "more-btn small";
   menuBtn.textContent = "⋮";
   menuBtn.setAttribute("aria-label", "Действия с задачей");
   menuBtn.addEventListener("click", event => openTaskMenu(event.currentTarget, task));
 
-  actions.append(menuBtn);
-  card.append(handle, checkbox, content, actions);
+  card.append(handle, checkbox, content, menuBtn);
   attachDragHandlers(handle, card);
   return card;
 }
@@ -539,10 +535,15 @@ function attachDragHandlers(handle, card) {
       width: rect.width,
     };
 
+    // Move the preview to <body>, just like Scheduled. The reminders card
+    // uses backdrop-filter, which can otherwise create a fixed-position
+    // containing block in Firefox/WebKit and make the card jump.
     card.classList.add("dragging", "dragging-fixed");
     card.style.left = `${rect.left}px`;
     card.style.top = `${rect.top}px`;
     card.style.width = `${rect.width}px`;
+    card.style.height = `${rect.height}px`;
+    document.body.appendChild(card);
     document.body.classList.add("queue-drag-active");
 
     document.addEventListener("pointermove", onQueueDragMove, { capture: true, passive: false });
@@ -594,6 +595,7 @@ async function finishQueueDrag(event) {
   card.style.left = "";
   card.style.top = "";
   card.style.width = "";
+  card.style.height = "";
   document.body.classList.remove("queue-drag-active");
 
   placeholder.replaceWith(card);
@@ -1179,11 +1181,13 @@ function saveCurrentScrollPosition() {
   scrollPositions[currentScrollKey()] = window.scrollY;
 }
 
-function restoreScrollPosition(key) {
+function restoreScrollPosition(key, targetElement = null) {
   const top = scrollPositions[key] ?? 0;
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => window.scrollTo({ top, left: 0, behavior: "auto" }));
-  });
+  // Restore within the same event turn. Waiting for animation frames makes
+  // the browser paint scrollY=0 first, producing a visible jump. Reading
+  // offsetHeight forces layout after hidden panels are revealed/rendered.
+  if (targetElement) void targetElement.offsetHeight;
+  window.scrollTo({ top, left: 0, behavior: "auto" });
 }
 
 function setMainView(view) {
@@ -1206,7 +1210,7 @@ function setMainView(view) {
     setReminderTab("scheduled", { saveScroll: false, restoreScroll: false });
   }
 
-  restoreScrollPosition(currentScrollKey());
+  restoreScrollPosition(currentScrollKey(), calendar ? dom.calendarView : dom.remindersView);
 }
 
 function setReminderTab(tab, options = {}) {
@@ -1229,7 +1233,7 @@ function setReminderTab(tab, options = {}) {
   if (queue) renderQueue(); else renderScheduled();
 
   if (restoreScroll && activeMainView === "reminders") {
-    restoreScrollPosition(activeReminderTab);
+    restoreScrollPosition(activeReminderTab, queue ? dom.queuePanel : dom.scheduledPanel);
   }
 }
 
@@ -1332,7 +1336,7 @@ async function init() {
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=38").catch(console.error);
+      navigator.serviceWorker.register("./sw.js?v=39").catch(console.error);
     });
   }
 }
