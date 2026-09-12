@@ -7,12 +7,12 @@ const SLOTS = [
 
 const ACTIVITY_TYPES = new Set(["work", "study", "leisure", "health", "communication", "household"]);
 const CATEGORY_LABELS = {
-  work: "Работа",
-  study: "Учёба",
-  leisure: "Досуг",
-  health: "Здоровье",
-  communication: "Общение",
-  household: "Быт",
+  work: "🩺 Работа",
+  study: "📖 Учёба",
+  leisure: "🧳 Досуг",
+  health: "🏋️‍♂️ Здоровье",
+  communication: "👥 Общение",
+  household: "🧺 Быт",
 };
 
 const DB_NAME = "day-planner-db";
@@ -59,6 +59,8 @@ const dom = {
   scheduleForm: document.querySelector("#scheduleForm"),
   scheduleTaskName: document.querySelector("#scheduleTaskName"),
   scheduleDateInput: document.querySelector("#scheduleDateInput"),
+  schedulePrevDayBtn: document.querySelector("#schedulePrevDayBtn"),
+  scheduleNextDayBtn: document.querySelector("#scheduleNextDayBtn"),
   scheduleSlotChoices: document.querySelector("#scheduleSlotChoices"),
   scheduleNoSlots: document.querySelector("#scheduleNoSlots"),
   confirmScheduleBtn: document.querySelector("#confirmScheduleBtn"),
@@ -783,14 +785,14 @@ function createScheduledTaskRow(task) {
   }
 
   const badges = document.createElement("div");
-  badges.className = "mini-priority-row";
+  badges.className = "task-priority-row";
 
   const importanceBadge = document.createElement("span");
-  importanceBadge.className = `mini-priority important${task.important ? " active" : ""}`;
+  importanceBadge.className = `priority-chip important${task.important ? " active" : ""}`;
   importanceBadge.textContent = task.important ? "Важно" : "Неважно";
 
   const urgencyBadge = document.createElement("span");
-  urgencyBadge.className = `mini-priority urgent${task.urgent ? " active" : ""}`;
+  urgencyBadge.className = `priority-chip urgent${task.urgent ? " active" : ""}`;
   urgencyBadge.textContent = task.urgent ? "Срочно" : "Несрочно";
 
   badges.append(importanceBadge, urgencyBadge);
@@ -1066,6 +1068,15 @@ async function openScheduleDialog(taskId) {
   dom.scheduleDateInput.value = dateKey(preferred);
   await renderScheduleSlotChoices(task.scheduled?.slot ?? null);
   dom.scheduleDialog.showModal();
+}
+
+function shiftScheduleDate(days) {
+  const base = dom.scheduleDateInput.value
+    ? parseDateKey(dom.scheduleDateInput.value)
+    : startOfDay(new Date());
+  base.setDate(base.getDate() + days);
+  dom.scheduleDateInput.value = dateKey(base);
+  renderScheduleSlotChoices();
 }
 
 async function renderScheduleSlotChoices(preselectSlot = null) {
@@ -1395,6 +1406,8 @@ function bindEvents() {
   });
 
   dom.scheduleDateInput.addEventListener("change", () => renderScheduleSlotChoices());
+  dom.schedulePrevDayBtn.addEventListener("click", () => shiftScheduleDate(-1));
+  dom.scheduleNextDayBtn.addEventListener("click", () => shiftScheduleDate(1));
   dom.scheduleForm.addEventListener("submit", event => {
     event.preventDefault();
     scheduleCurrentTask();
@@ -1441,7 +1454,7 @@ async function init() {
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=310").catch(console.error);
+      navigator.serviceWorker.register("./sw.js?v=311").catch(console.error);
     });
   }
 }

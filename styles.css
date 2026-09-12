@@ -172,8 +172,12 @@ select:focus, input:focus, textarea:focus { border-color: #9bbaff; box-shadow: 0
 .task-card { transition: transform .14s ease, box-shadow .14s ease, opacity .14s ease; }
 /* Queue and Scheduled use the same four-column task geometry. */
 .queue-task, .scheduled-task-row {
-  display: grid; grid-template-columns: 22px 30px minmax(0,1fr) 32px; gap: 8px; align-items: start;
-  padding: 13px 15px 13px 10px;
+  display: grid;
+  grid-template-columns: 24px 28px minmax(0, 1fr) 34px;
+  gap: 8px;
+  align-items: start;
+  min-height: 86px;
+  padding: 12px 12px 12px 10px;
 }
 .queue-task {
   border: 1px solid var(--line); border-radius: 18px; background: #fff;
@@ -185,23 +189,23 @@ select:focus, input:focus, textarea:focus { border-color: #9bbaff; box-shadow: 0
   position: fixed !important; margin: 0 !important; pointer-events: none; will-change: top; box-sizing: border-box;
 }
 .queue-drag-placeholder {
-  border: 2px dashed #b9cdf7; border-radius: 18px; background: #f4f8ff; min-height: 72px;
+  border: 2px dashed #b9cdf7; border-radius: 18px; background: #f4f8ff; min-height: 86px;
 }
 body.queue-drag-active { user-select: none; -webkit-user-select: none; }
-.drag-handle { align-self: stretch; border: 0; background: transparent; color: #9aa5b7; padding: 2px 0; font-size: 24px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.drag-handle { align-self: stretch; width: 24px; min-width: 24px; min-height: 36px; border: 0; background: transparent; color: #9aa5b7; padding: 0; display: grid; place-items: center; font-size: 22px; line-height: 1; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
 .drag-handle:active { cursor: grabbing; }
-.task-checkbox { appearance: none; width: 24px; height: 24px; margin: 2px 0 0; border: 2px solid #aab6c8; border-radius: 7px; background: #fff; display: grid; place-content: center; }
+.task-checkbox { appearance: none; width: 24px; height: 24px; margin: 1px 0 0; border: 2px solid #aab6c8; border-radius: 7px; background: #fff; display: grid; place-content: center; }
 .task-checkbox:checked { border-color: var(--blue); background: var(--blue); }
 .task-checkbox:checked::after { content: "✓"; color: #fff; font-size: 16px; font-weight: 800; line-height: 1; }
 .task-content, .scheduled-task-content { min-width: 0; }
 .task-title-button { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: var(--text); font-weight: 730; font-size: 17px; text-align: left; line-height: 1.25; }
 .task-note { margin: 3px 0 0; color: var(--muted); font-size: 13px; line-height: 1.32; overflow-wrap: anywhere; white-space: pre-wrap; }
 .completed .task-title-button, .completed .task-note { text-decoration: line-through; color: #8e96a4; }
-.task-priority-row, .mini-priority-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.task-priority-row, .mini-priority-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
 .priority-chip, .priority-toggle {
   border: 1px solid var(--line); border-radius: 999px; font-weight: 700; transition: background .14s ease, border-color .14s ease, color .14s ease;
 }
-.priority-chip { min-height: 30px; padding: 0 10px; font-size: 12px; }
+.priority-chip { min-height: 26px; padding: 0 9px; font-size: 11px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
 /* Importance: green when false, red when true. */
 .priority-chip.important:not(.active), .priority-toggle.important:not(.active) {
   color: #176f45; border-color: #bde7cd; background: var(--leisure-soft);
@@ -219,7 +223,7 @@ body.queue-drag-active { user-select: none; -webkit-user-select: none; }
 .task-actions { display: flex; justify-content: flex-end; align-items: flex-start; }
 .schedule-btn { border: 1px solid #cfe0ff; border-radius: 12px; min-height: 38px; padding: 0 12px; background: #edf4ff; color: #1760d7; font-weight: 720; }
 .more-btn { width: 36px; height: 38px; border-radius: 12px; font-size: 21px; color: #4d5b72; }
-.more-btn.small { width: 32px; height: 34px; }
+.more-btn.small { width: 34px; height: 36px; border-radius: 11px; }
 .empty-state { margin: 22px 0 8px; border: 1px dashed #d8dde6; border-radius: 18px; padding: 25px 18px; text-align: center; color: var(--muted); }
 .empty-state strong, .empty-state span { display: block; }
 .empty-state strong { color: var(--text); margin-bottom: 5px; }
@@ -246,9 +250,9 @@ body.queue-drag-active { user-select: none; -webkit-user-select: none; }
 .scheduled-task-row { border-bottom: 1px solid #eef0f4; background: #fff; }
 .scheduled-task-row.dragging { opacity: .95; transform: scale(1.012); box-shadow: 0 14px 34px rgba(31,42,68,.20); z-index: 95; border: 1px solid #dce4f2; border-radius: 14px; }
 .scheduled-task-row.dragging-fixed { position: fixed !important; margin: 0 !important; pointer-events: none; will-change: top; box-sizing: border-box; }
-.scheduled-drag-placeholder { margin: 5px 10px; border: 2px dashed #b9cdf7; border-radius: 13px; background: #f4f8ff; min-height: 54px; }
+.scheduled-drag-placeholder { margin: 5px 10px; border: 2px dashed #b9cdf7; border-radius: 13px; background: #f4f8ff; min-height: 86px; }
 body.scheduled-drag-active { user-select: none; -webkit-user-select: none; }
-.scheduled-drag-handle { font-size: 20px; min-width: 20px; }
+.scheduled-drag-handle { font-size: 22px; min-width: 24px; }
 .block-empty { margin: 0; padding: 16px; color: var(--muted); font-size: 13px; }
 .add-to-block-btn { width: calc(100% - 24px); margin: 10px 12px 12px; min-height: 40px; border: 0; border-radius: 12px; background: #f4f6f9; color: var(--blue); font-weight: 730; text-align: left; padding: 0 14px; }
 .mini-priority-row { margin-top: 6px; }
@@ -280,6 +284,10 @@ body.scheduled-drag-active { user-select: none; -webkit-user-select: none; }
 .priority-toggle { min-height: 44px; }
 .slot-picker { margin: 0; padding: 0; border: 0; }
 .slot-picker legend { margin-bottom: 8px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.schedule-date-controls { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px; gap: 8px; align-items: center; }
+.schedule-date-controls .text-input { min-width: 0; text-align: center; }
+.schedule-date-step { width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 13px; background: #fff; color: #4d5b72; font-size: 26px; line-height: 1; display: grid; place-items: center; }
+.schedule-date-step:active { background: #f3f5f8; }
 .schedule-slot-choices { display: grid; gap: 8px; }
 .schedule-slot-option { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: center; padding: 11px; border: 1px solid var(--line); border-radius: 14px; background: #f8f9fb; }
 .schedule-slot-option:has(input:checked) { border-color: #a8c4ff; box-shadow: 0 0 0 2px rgba(47,115,255,.08); }

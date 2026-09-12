@@ -10,10 +10,10 @@
   <meta name="format-detection" content="telephone=no" />
   <title>Beluga Planner</title>
 
-  <link rel="manifest" href="./manifest.webmanifest?v=310" />
-  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=310" />
+  <link rel="manifest" href="./manifest.webmanifest?v=311" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=311" />
   <link rel="icon" href="./icons/icon-192.png?v=36" />
-  <link rel="stylesheet" href="./styles.css?v=310" />
+  <link rel="stylesheet" href="./styles.css?v=311" />
 </head>
 <body>
   <main class="app-shell">
@@ -130,12 +130,12 @@
             <span class="sr-only">Тип занятия</span>
             <select class="category-select">
               <option value="">Выбрать тип</option>
-              <option value="work">Работа</option>
-              <option value="study">Учёба</option>
-              <option value="leisure">Досуг</option>
-              <option value="health">Здоровье</option>
-              <option value="communication">Общение</option>
-              <option value="household">Быт</option>
+              <option value="work">🩺 Работа</option>
+              <option value="study">📖 Учёба</option>
+              <option value="leisure">🧳 Досуг</option>
+              <option value="health">🏋️‍♂️ Здоровье</option>
+              <option value="communication">👥 Общение</option>
+              <option value="household">🧺 Быт</option>
             </select>
           </label>
           <button class="clear-btn" type="button" title="Очистить блок" aria-label="Очистить блок">×</button>
@@ -198,10 +198,14 @@
         <button class="dialog-close" type="button" data-close-dialog="scheduleDialog" aria-label="Закрыть">×</button>
       </header>
 
-      <label class="field">
+      <div class="field">
         <span class="field-label">Дата</span>
-        <input id="scheduleDateInput" class="text-input" type="date" required />
-      </label>
+        <div class="schedule-date-controls">
+          <button id="schedulePrevDayBtn" class="schedule-date-step" type="button" aria-label="Предыдущий день">‹</button>
+          <input id="scheduleDateInput" class="text-input" type="date" required />
+          <button id="scheduleNextDayBtn" class="schedule-date-step" type="button" aria-label="Следующий день">›</button>
+        </div>
+      </div>
 
       <fieldset class="slot-picker">
         <legend>Временной блок</legend>
@@ -220,6 +224,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-  <script src="./app.js?v=310" defer></script>
+  <script src="./app.js?v=311" defer></script>
 </body>
 </html>
